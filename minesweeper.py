@@ -106,9 +106,15 @@ class Sentence():
         Returns the set of all cells in self.cells known to be mines.
         """
 
-        if (len(self.cells) == self.count) and (self.count > 0):
-            return self.cells
+        #If the number of cells is equal to number of mines (and there is at least one mine)
+        #then all cells must be mines
 
+        mineCount = self.count        
+        
+        if (len(self.cells) == mineCount) and (mineCount > 0):
+            #Returns all cells
+            return self.cells
+        
         return set()
 
     def known_safes(self):
@@ -116,7 +122,11 @@ class Sentence():
         Returns the set of all cells in self.cells known to be safe.
         """
 
-        if (self.count == 0):
+        #If sentence contains no mines then all cells in sentence must be safe
+
+        mineCount = self.count
+        
+        if (mineCount == 0):
             return self.cells
 
         return set()
@@ -126,11 +136,15 @@ class Sentence():
         Updates internal knowledge representation given the fact that
         a cell is known to be a mine.
         """
-    
+
+        #Loops through cells
         for item in self.cells:
+            #Checks to see if cell matches the "mine"
             if (item == cell):
+                #Removes cell from sentence
                 self.cells.remove(cell)                
 
+                #Reduces the mine count by 1
                 if (self.count > 0):
                     self.count -= 1
                 else:
@@ -144,9 +158,13 @@ class Sentence():
         Updates internal knowledge representation given the fact that
         a cell is known to be safe.
         """
+
         
+        #Loops through cells
         for item in self.cells:
+            #Checks to see if cell matches the confimed "safe" cell
             if (item == cell):
+                #Removes cell from sentence
                 self.cells.remove(cell)                
 
                 return
@@ -212,41 +230,45 @@ class MinesweeperAI():
         self.mark_safe(cell)
 
         #Creates new sentence and adds to AI's knowledge base
-        tempNeighbours = set()
+        neighbours = set()
 
+        #Gets coords of current cell
         row = cell[0]
         column = cell[1]
 
+        #Checks all cells and identifies neighbours by checking cells within 1 cell
+        #of current cell
         for x in range(0, self.width):
             for y in range(0, self.height):
-                if (abs(row - y) == 1) and (abs(column - x) == 1):
-                    tempNeighbours.add((y, x))
-                elif (abs(row - y) == 0) and (abs(column - x) == 1):
-                    tempNeighbours.add((y, x))
-                elif (abs(row - y) == 1) and (abs(column - x) == 0):
-                    tempNeighbours.add((y, x))
+                #Adds adjacent cells that haven't been set as safe              
+                if ((y,x) not in self.safes):
+                    if (abs(row - y) == 1) and (abs(column - x) == 1):
+                        neighbours.add((y, x))
+                    elif (abs(row - y) == 0) and (abs(column - x) == 1):
+                        neighbours.add((y, x))
+                    elif (abs(row - y) == 1) and (abs(column - x) == 0):
+                        neighbours.add((y, x))
 
-        neighbours = set()
-        
-        for neighbour in tempNeighbours:
-            if neighbour not in self.safes:
-                neighbours.add(neighbour)
-        
+        #Creates new sentence using the new neighbours and adds to knowledge base
         newSentence = Sentence(neighbours, count)
         self.knowledge.append(newSentence)
 
         #Mark additional cells as safe or as mines if concludable
         for sentence in self.knowledge:
+            #Attempts to find known mines from sentence
             mines = sentence.known_mines()
-
+            #Creates deep-copy of sentence
             tempSentenceCells = copy.deepcopy(sentence.cells)
 
+            #Checks the sentence cells for mines and marks them if necessary
             for cell in tempSentenceCells:
                 if (cell in mines):
                     self.mark_mine(cell)
 
+            #Attempts to find known safes from sentence
             safes = sentence.known_safes()
 
+            #Checks the sentence cells for safes and marks them if necessary
             for cell in tempSentenceCells:
                 if (cell in safes):
                     self.mark_safe(cell)
@@ -254,24 +276,29 @@ class MinesweeperAI():
         tempKnowledge = []
         
         #Creates new sentences using inference rules
-        for first in self.knowledge:
-            for second in self.knowledge:
-                if (first.cells == second.cells):
-                    pass
-                elif (len(first.cells) == 0) or (len(second.cells) == 0):
-                    pass
-                elif (first.count == 0) or (second.count == 0):
-                    pass
-                elif first.cells.issubset(second.cells):
-                    newCells = second.cells - first.cells
-                    newCount = second.count - first.count
-                    newSentence = Sentence(newCells, newCount)
-                    tempKnowledge.append(newSentence)
 
+        #Gets two sentences from knowledge base
+        for first in self.knowledge:
+            for second in self.knowledge:                
+                #Checks if one sentence is a sub-set of the other
+                if first.cells.issubset(second.cells):
+                    #If the first and second sentences are the same then attempt is passed
+                    if (first.cells == second.cells):
+                        pass
+                    #If either of the sentences have zero mines then attempt is passed
+                    elif (first.count == 0) or (second.count == 0):
+                        pass
+                    #If either of the sentences have zero cells than attempt is passed
+                    elif (len(first.cells) == 0) or (len(second.cells) == 0):
+                        pass
+                    else:                       
+                        #Removes common cells and calculates new mine count to form a new sentence   
+                        newSentence = Sentence(second.cells - first.cells, second.count - first.count)
+                        tempKnowledge.append(newSentence)
+
+        #Adds new sentences to knowledge base
         for sentence in tempKnowledge:
             self.knowledge.append(sentence)
-
-        return
                     
 
     def make_safe_move(self):
@@ -284,8 +311,11 @@ class MinesweeperAI():
         and self.moves_made, but should not modify any of those values.
         """
 
+        #Checks all the cells that are known to be safe and checks to see if there is one that
+        #hasn't been used yet
         for cell in self.safes:
             if (cell not in self.moves_made):
+                #Returns safe cell that hasn't been used
                 return cell
         
         return None
@@ -298,10 +328,12 @@ class MinesweeperAI():
             2) are not known to be mines
         """
 
+        #Loops through all cells
         for x in range(self.height):
             for y in range(self.width):
                 cell = (x, y)
 
+                #Returns a cell that isn't a mine and that hasn't been used yet
                 if (cell not in self.moves_made) and (cell not in self.mines):
                     return cell
         
